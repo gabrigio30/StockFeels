@@ -1,9 +1,11 @@
 from urllib.request import urlopen, Request
 from bs4 import BeautifulSoup
+from datetime import date
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import pandas as pd
 import certifi
 import ssl
+import matplotlib.pyplot as plt
 
 finviz_url = 'https://finviz.com/quote.ashx?t='
 tickers = ['AMZN', 'FB', 'AMD']
@@ -22,20 +24,9 @@ for ticker in tickers:
     news_tables[ticker] = news_table
     break
 
-'''
-#we will parse the table row singularly to analyze it
-amzn_data = news_tables['AMZN']
-amzn_rows = amzn_data.find_all('tr')
-
-for index, row in enumerate(amzn_rows):
-    title = row.a.text
-    timestamp = row.td.text
-    #print(timestamp + ' ' + title)
-'''
-
 parsed_data = []
 time = ''
-date = ''
+day = ''
 
 for ticker, news_table in news_tables.items():
     for row in news_table.findAll('tr'):
@@ -47,17 +38,27 @@ for ticker, news_table in news_tables.items():
             time = date_data[0]
             #print(time)
         else:
-            date = date_data[0]
+            day = date_data[0]
             time = date_data[1]
             #print(date, time)
 
-        parsed_data.append([ticker, date, time, title])
+        if day == 'Today':
+            day = date.today()
+
+        parsed_data.append([ticker, day, time, title])
 
 #print(parsed_data)
 
-df = pd.DataFrame(parsed_data, columns=['ticker', 'date', 'time', 'title'])
+df = pd.DataFrame(parsed_data, columns=['ticker', 'day', 'time', 'title'])
+#print(df.head())
 vader = SentimentIntensityAnalyzer()
 
 score = lambda title: vader.polarity_scores(title)['compound']
 df['compound'] = df['title'].apply(score)
-print(df.head())
+df['day'] = pd.to_datetime(df.day).dt.date
+
+#print(pd.to_datetime(df.day).dt.day)
+#print(df.head())
+#plt.figure(figsize=(10,8))
+mean_df = df.groupby(['ticker', 'day', 'time', 'title']).mean()
+print(mean_df)
