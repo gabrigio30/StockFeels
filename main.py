@@ -25,6 +25,7 @@ parsed_data = []
 time = ''
 day = ''
 
+#here we are parsing the data to make it usable
 for ticker, news_table in news_tables.items():
     for row in news_table.findAll('tr'):
         title = row.a.text
@@ -41,15 +42,22 @@ for ticker, news_table in news_tables.items():
 
         parsed_data.append([ticker, day, time, title])
 
+#we create the dataframe storing our parsed data
 df = pd.DataFrame(parsed_data, columns=['ticker', 'day', 'time', 'title'])
+df['day'] = pd.to_datetime(df.day).dt.date
+
+#we use the vader library to abalyze each title
 vader = SentimentIntensityAnalyzer()
 
+#we use a lambda function to compute a score for each article based on its title and add it to the dataframe
 score = lambda title: vader.polarity_scores(title)['compound']
 df['compound'] = df['title'].apply(score)
-df['day'] = pd.to_datetime(df.day).dt.date
-#each website page contains up to 100 articles on the specified ticker
 
+#each website page contains up to 100 articles on the specified ticker
+#we group our data by ticker while computing the mean of the compound score for each day
 mean_df = df.groupby(['ticker', 'day']).mean(['compound'])
+
+#we make the data more readable by unstacking it and by plotting it using matplotlib
 mean_df = mean_df.unstack()
 mean_df = mean_df.xs('compound', axis='columns').transpose()
 mean_df.plot(kind='bar')
