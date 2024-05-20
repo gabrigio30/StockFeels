@@ -7,6 +7,7 @@ import certifi
 import ssl
 import matplotlib.pyplot as plt
 
+#we specify the website url and the stocks indexes we want to check
 finviz_url = 'https://finviz.com/quote.ashx?t='
 tickers = ['AMZN', 'GOOG', 'AAPL', 'NVDA']
 
@@ -25,7 +26,7 @@ parsed_data = []
 time = ''
 day = ''
 
-#here we are parsing the data to make it usable
+#here we are parsing the html data to get the title, the day and the time of each article
 for ticker, news_table in news_tables.items():
     for row in news_table.findAll('tr'):
         title = row.a.text
@@ -40,25 +41,27 @@ for ticker, news_table in news_tables.items():
         if day == 'Today':
             day = date.today()
 
+        #we append the data to the list
         parsed_data.append([ticker, day, time, title])
 
 #we create the dataframe storing our parsed data
 df = pd.DataFrame(parsed_data, columns=['ticker', 'day', 'time', 'title'])
 df['day'] = pd.to_datetime(df.day).dt.date
-
-#we use the vader library to abalyze each title
+#each website page contains up to 100 articles on the specified ticker
+#we use the vader library to apply sentiment analysis to each title
 vader = SentimentIntensityAnalyzer()
 
-#we use a lambda function to compute a score for each article based on its title and add it to the dataframe
+#we use a lambda function to compute a compound score for each article based on its title and add it to the dataframe
 score = lambda title: vader.polarity_scores(title)['compound']
 df['compound'] = df['title'].apply(score)
 
-#each website page contains up to 100 articles on the specified ticker
 #we group our data by ticker while computing the mean of the compound score for each day
 mean_df = df.groupby(['ticker', 'day']).mean(['compound'])
 
-#we make the data more readable by unstacking it and by plotting it using matplotlib
+#we make the data more readable by unstacking it
 mean_df = mean_df.unstack()
 mean_df = mean_df.xs('compound', axis='columns').transpose()
+
+#we visualize the data in a bar chart format
 mean_df.plot(kind='bar')
 plt.show()
